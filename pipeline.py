@@ -5,13 +5,13 @@ from collections import defaultdict
 
 
 def ler_log(caminho_log='log_clientes.csv'):
-    """Lê o arquivo de log e retorna uma lista de dicionários."""
+    "Lê o arquivo de log e retorna uma lista de dicionários."
     logs = []
     
     try:
         with open(caminho_log, mode='r') as file:
             reader = csv.reader(file)
-            next(reader)  #Isso pula o cabeçalho, cacete!!
+            next(reader)  #Isso pula o cabeçalho, cacete
             
             for row in reader:
                 if len(row) < 4:
@@ -46,7 +46,7 @@ def dividir_log(logs, proporcao_treino=0.7):
 
 
 def preparar_dados_log(logs, proporcao_primeira_fase=0.8):
-    """Divide os logs de forma cronológica (por rodada)."""
+    "Divide os logs de forma cronológica (por rodada)."
     if not logs:
         return [], []
     

@@ -5,7 +5,7 @@ def gerar_dados_clientes(num_clientes: int = 5,
                         amostras_por_cliente: int = 200,
                         dimensao_entrada: int = 2, 
                         semente: int = 42):
-    """Gera dados simulados não-IID (heterogêneos) para cada cliente."""
+    "Gera dados simulados não-IID pra cada cliente."
     
     np.random.seed(semente)
     dados_clientes = []

@@ -4,29 +4,45 @@ import numpy as np
 from collections import defaultdict
 
 
+import csv
+import numpy as np
+from collections import defaultdict
+
+
 def ler_log(caminho_log='log_clientes.csv'):
-    "Lê o arquivo de log e retorna uma lista de dicionários."
     logs = []
-    
+
     try:
         with open(caminho_log, mode='r') as file:
-            reader = csv.reader(file)
-            next(reader)  #Isso pula o cabeçalho, cacete
-            
+            reader = csv.DictReader(file)
+
             for row in reader:
-                if len(row) < 4:
-                    continue
                 logs.append({
-                    "rodada": int(row[0]),
-                    "cliente_id": int(row[1]),
-                    "mse_treino": float(row[2]),
-                    "mse_teste": float(row[3])
+                    "janela": int(row["janela"]),
+                    "rodada": int(row["rodada"]),
+                    "cliente_id": int(row["cliente_id"]),
+                    "selecionado": int(row["selecionado"]),
+                    "falhou": int(row["falhou"]),
+                    "tempo_execucao": float(row["tempo_execucao"]),
+                    "tamanho_lote": int(row["tamanho_lote"]),
+                    "mse_treino": float(row["mse_treino"]),
+                    "mse_teste": float(row["mse_teste"])
                 })
+
     except FileNotFoundError:
         print(f"Arquivo {caminho_log} não encontrado.")
         return []
-    
+
     return logs
+
+
+def analisar_clientes(logs):
+    clientes = defaultdict(list)
+
+    for log in logs:
+        clientes[log["cliente_id"]].append(log)
+
+    return dict(clientes)
 
 
 def dividir_log(logs, proporcao_treino=0.7):

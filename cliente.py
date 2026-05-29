@@ -1,21 +1,12 @@
-# cliente.py
-
 from modelo import ModeloRegressaoLinear
 import numpy as np
+import time
 
 
 class Cliente:
-    "Cliente federado"
-
     def __init__(self, id_cliente, X, y, proporcao_treino=0.8):
         self.id_cliente = id_cliente
 
-        # Embaralha os dados
-        indices = np.random.permutation(len(X))
-        X = X[indices]
-        y = y[indices]
-
-        # Divide treino e teste
         corte = int(len(X) * proporcao_treino)
 
         self.X_treino = X[:corte]
@@ -24,23 +15,14 @@ class Cliente:
         self.X_teste = X[corte:]
         self.y_teste = y[corte:]
 
-    def obter_lote_rodada(self, rodada, total_rodadas):
-        """
-        Retorna apenas uma parte do treino para cada rodada
-        """
+    def obter_janela(self, indice_janela, tamanho_janela, salto):
+        inicio = indice_janela * salto
+        fim = inicio + tamanho_janela
 
-        total = len(self.y_treino)
+        if inicio >= len(self.y_treino):
+            return None, None
 
-        inicio = int((rodada - 1) * total / total_rodadas)
-        fim = int(rodada * total / total_rodadas)
-
-        if fim <= inicio:
-            fim = min(inicio + 1, total)
-
-        return (
-            self.X_treino[inicio:fim],
-            self.y_treino[inicio:fim]
-        )
+        return self.X_treino[inicio:fim], self.y_treino[inicio:fim]
 
     def treinar(
         self,
@@ -48,56 +30,48 @@ class Cliente:
         vies_global,
         taxa_aprendizado,
         epocas_locais,
-        rodada,
-        total_rodadas
+        indice_janela,
+        tamanho_janela,
+        salto
     ):
-
-        # Pega apenas o lote da rodada
-        X_lote, y_lote = self.obter_lote_rodada(
-            rodada,
-            total_rodadas
+        X_janela, y_janela = self.obter_janela(
+            indice_janela,
+            tamanho_janela,
+            salto
         )
 
-        # Cria modelo local
+        if X_janela is None or len(y_janela) == 0:
+            return None, None, 0, 0.0
+
+        inicio_tempo = time.time()
+
         modelo = ModeloRegressaoLinear(len(pesos_globais))
+        modelo.definir_parametros(pesos_globais, vies_global)
 
-        # Recebe modelo global
-        modelo.definir_parametros(
-            pesos_globais,
-            vies_global
-        )
-
-        # Treina localmente
         modelo.treinar_local(
-            X_lote,
-            y_lote,
+            X_janela,
+            y_janela,
             taxa_aprendizado,
             epocas_locais
         )
 
+        tempo_execucao = time.time() - inicio_tempo
+
         pesos, vies = modelo.obter_parametros()
 
-        return pesos, vies, len(y_lote)
+        return pesos, vies, len(y_janela), tempo_execucao
 
-    def avaliar_treino(
-        self,
-        modelo,
-        rodada,
-        total_rodadas
-    ):
+    def avaliar_treino_janela(self, modelo, indice_janela, tamanho_janela, salto):
+        X_janela, y_janela = self.obter_janela(
+            indice_janela,
+            tamanho_janela,
+            salto
+        )
 
-        total = len(self.y_treino)
+        if X_janela is None or len(y_janela) == 0:
+            return 0.0
 
-        fim = int(rodada * total / total_rodadas)
-
-        X = self.X_treino[:fim]
-        y = self.y_treino[:fim]
-
-        return modelo.erro_quadratico_medio(X, y)
+        return modelo.erro_quadratico_medio(X_janela, y_janela)
 
     def avaliar_teste(self, modelo):
-
-        return modelo.erro_quadratico_medio(
-            self.X_teste,
-            self.y_teste
-        )
+        return modelo.erro_quadratico_medio(self.X_teste, self.y_teste)

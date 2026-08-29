@@ -32,7 +32,9 @@ class Cliente:
         epocas_locais,
         indice_janela,
         tamanho_janela,
-        salto
+        salto,
+        algoritmo="fedavg",
+        mu=0.0
     ):
         X_janela, y_janela = self.obter_janela(
             indice_janela,
@@ -48,11 +50,16 @@ class Cliente:
         modelo = ModeloRegressaoLinear(len(pesos_globais))
         modelo.definir_parametros(pesos_globais, vies_global)
 
+        mu_efetivo = mu if algoritmo == "fedprox" else 0.0
+
         modelo.treinar_local(
             X_janela,
             y_janela,
             taxa_aprendizado,
-            epocas_locais
+            epocas_locais,
+            mu=mu_efetivo,
+            pesos_referencia=pesos_globais,
+            vies_referencia=vies_global
         )
 
         tempo_execucao = time.time() - inicio_tempo
@@ -60,6 +67,34 @@ class Cliente:
         pesos, vies = modelo.obter_parametros()
 
         return pesos, vies, len(y_janela), tempo_execucao
+
+    def personalizar(self, pesos_globais, vies_global, taxa_aprendizado, epocas_locais):
+        """Fine-tuning local a partir do modelo global final.
+
+        Parte dos parâmetros globais e dá alguns passos extras de treino
+        usando todo o histórico de treino local do cliente. Isso costuma
+        reduzir bastante o erro de clientes cujos dados divergem mais da
+        distribuição média usada para o modelo global (non-IID).
+        """
+        if len(self.y_treino) == 0:
+            return pesos_globais, vies_global
+
+        modelo = ModeloRegressaoLinear(len(pesos_globais))
+        modelo.definir_parametros(pesos_globais, vies_global)
+
+        modelo.treinar_local(
+            self.X_treino,
+            self.y_treino,
+            taxa_aprendizado,
+            epocas_locais
+        )
+
+        return modelo.obter_parametros()
+
+    def avaliar_teste_personalizado(self, pesos, vies):
+        modelo = ModeloRegressaoLinear(len(pesos))
+        modelo.definir_parametros(pesos, vies)
+        return modelo.erro_quadratico_medio(self.X_teste, self.y_teste)
 
     def avaliar_treino_janela(self, modelo, indice_janela, tamanho_janela, salto):
         X_janela, y_janela = self.obter_janela(
